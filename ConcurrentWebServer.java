@@ -52,22 +52,14 @@ class ClientHandler implements Runnable {
 
             // Read HTTP request
             String line = in.readLine();
-            if (line != null && line.startsWith("GET")) {
-                // Send 200 OK response with unique hello message
-                out.println("HTTP/1.1 200 OK");
-                out.println("Content-Type: text/plain");
-                out.println("Connection: close");
-                out.println();
-                out.println("Hello to client " + clientNumber + "!");
-                System.out.println("Responded with 200 OK to client " + clientNumber);
-            } else {
-                // Send 400 Bad Request response for unsupported requests
-                out.println("HTTP/1.1 400 Bad Request");
-                out.println("Content-Type: text/plain");
-                out.println("Connection: close");
-                out.println();
-                out.println("400 Bad Request - This server only supports GET requests.");
-                System.out.println("Responded with 400 Bad Request to client " + clientNumber);
+            if (line != null) {
+                if (line.startsWith("GET")) {
+                    handleGetRequest(out);
+                } else if (line.startsWith("POST")) {
+                    handlePostRequest(in, out);
+                } else {
+                    sendBadRequestResponse(out);
+                }
             }
 
         } catch (IOException e) {
@@ -80,5 +72,48 @@ class ClientHandler implements Runnable {
                 System.err.println("Could not close client socket: " + e.getMessage());
             }
         }
+    }
+
+    private void handleGetRequest(PrintWriter out) {
+        // Send 200 OK response with unique hello message
+        out.println("HTTP/1.1 200 OK");
+        out.println("Content-Type: text/plain");
+        out.println("Connection: close");
+        out.println();
+        out.println("Hello to client " + clientNumber + "!");
+        System.out.println("Responded with 200 OK to client " + clientNumber);
+    }
+
+    private void handlePostRequest(BufferedReader in, PrintWriter out) throws IOException {
+        // Read headers to determine content length if available
+        String line;
+        int contentLength = 0;
+        while ((line = in.readLine()) != null && !line.isEmpty()) {
+            if (line.startsWith("Content-Length:")) {
+                contentLength = Integer.parseInt(line.substring("Content-Length:".length()).trim());
+            }
+        }
+
+        // Read the POST data based on the content length
+        char[] postData = new char[contentLength];
+        in.read(postData, 0, contentLength);
+
+        // Send a 200 OK response with the received data
+        out.println("HTTP/1.1 200 OK");
+        out.println("Content-Type: text/plain");
+        out.println("Connection: close");
+        out.println();
+        out.println("Received POST data: " + new String(postData));
+        System.out.println("Responded with 200 OK to client " + clientNumber + " with POST data: " + new String(postData));
+    }
+
+    private void sendBadRequestResponse(PrintWriter out) {
+        // Send 400 Bad Request response for unsupported requests
+        out.println("HTTP/1.1 400 Bad Request");
+        out.println("Content-Type: text/plain");
+        out.println("Connection: close");
+        out.println();
+        out.println("400 Bad Request - This server only supports GET and POST requests.");
+        System.out.println("Responded with 400 Bad Request to client " + clientNumber);
     }
 }
