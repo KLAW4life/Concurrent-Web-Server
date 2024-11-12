@@ -1,12 +1,17 @@
 import java.io.*;
 import java.net.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ConcurrentWebServer {
     private static final int PORT = 8080;
-    private static final AtomicInteger clientCounter = new AtomicInteger(0); // Tracks client count
+    private static final int THREAD_POOL_SIZE = 10; // Adjust based on server capability
+    private static final AtomicInteger clientCounter = new AtomicInteger(0);
 
     public static void main(String[] args) {
+        // Create a fixed thread pool
+        ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+
         try (ServerSocket serverSocket = new ServerSocket(PORT)) {
             System.out.println("Server is listening on port " + PORT);
 
@@ -18,19 +23,22 @@ public class ConcurrentWebServer {
                 int clientNumber = clientCounter.incrementAndGet();
                 System.out.println("New client connected, assigned client number: " + clientNumber);
 
-                // Handle client in a new thread
-                new Thread(new ClientHandler(clientSocket, clientNumber)).start();
+                // Submit client handler to the thread pool
+                threadPool.submit(new ClientHandler(clientSocket, clientNumber));
             }
         } catch (IOException e) {
             System.err.println("Server exception: " + e.getMessage());
             e.printStackTrace();
+        } finally {
+            // Shutdown thread pool gracefully when server stops
+            threadPool.shutdown();
         }
     }
 }
 
 class ClientHandler implements Runnable {
-    private Socket clientSocket;
-    private int clientNumber;
+    private final Socket clientSocket;
+    private final int clientNumber;
 
     public ClientHandler(Socket socket, int clientNumber) {
         this.clientSocket = socket;
@@ -74,4 +82,3 @@ class ClientHandler implements Runnable {
         }
     }
 }
-
